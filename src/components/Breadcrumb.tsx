@@ -1,11 +1,22 @@
+// Update in Breadcrumb.tsx
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { useWebsocket } from '@/contexts/WebsocketContext';
 
 const Breadcrumb: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { ltpData } = useWebsocket();
+
+    const indices = [
+        { label: 'Sensex', token: '1' },
+        { label: 'Bankex', token: '12' },
+        { label: 'Nifty Bank', token: '26037' },
+        { label: 'Nifty 50', token: '26000' },
+        { label: 'Nifty Fin Service', token: '26009' },
+    ];
 
     // Map path to display name
     const getPageName = (path: string) => {
@@ -14,6 +25,43 @@ const Breadcrumb: React.FC = () => {
             case '/orderbook': return 'Order Book';
             default: return 'Dashboard';
         }
+    };
+
+    // Format number with Indian numbering system
+    const formatIndianNumber = (num: number | string) => {
+        const val = typeof num === 'string' ? parseFloat(num) : num;
+        if (isNaN(val)) return '0.00';
+        return val.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    };
+
+    const renderIndexItem = (label: string, token: string) => {
+        const data = ltpData.get(token);
+        const ltp = data?.lp || '0.00';
+        const pc = data?.pc || '0.00';
+        const isPositive = parseFloat(pc) >= 0;
+
+        return (
+            <div key={token} className="min-w-fit">
+                <div className="text-gray-400 text-sm">{label}</div>
+                <div className="pt-1 flex items-center gap-2">
+                    <span className="font-semibold text-base">
+                        {formatIndianNumber(ltp)}
+                    </span>
+                    <Badge
+                        variant="secondary"
+                        className={`${isPositive
+                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                            : 'bg-red-100 text-red-700 hover:bg-red-200'
+                            } text-[10px] py-0 border-none px-1.5`}
+                    >
+                        {isPositive ? '+' : ''}{pc}%
+                    </Badge>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -38,45 +86,7 @@ const Breadcrumb: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-8 text-lg overflow-x-auto no-scrollbar pb-2 md:pb-0 ml-auto justify-end">
-                <div className="min-w-fit">
-                    <div className="text-gray-400 text-sm">NSE</div>
-                    <div className="pt-1 flex items-center gap-2">
-                        <span className="font-semibold text-base">117,013.60</span>
-                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px] py-0">
-                            +8%
-                        </Badge>
-                    </div>
-                </div>
-
-                <div className="min-w-fit">
-                    <div className="text-gray-400 text-sm">BSE</div>
-                    <div className="pt-1 flex items-center gap-2">
-                        <span className="font-semibold text-base">117,013.60</span>
-                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px] py-0">
-                            +8%
-                        </Badge>
-                    </div>
-                </div>
-
-                <div className="min-w-fit">
-                    <div className="text-gray-400 text-sm">Nifty 50</div>
-                    <div className="pt-1 flex items-center gap-2">
-                        <span className="font-semibold text-base">2987.766</span>
-                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100 text-[10px] py-0">
-                            +8%
-                        </Badge>
-                    </div>
-                </div>
-
-                <div className="min-w-fit">
-                    <div className="text-gray-400 text-sm">Nifty Bank</div>
-                    <div className="pt-1 flex items-center gap-2">
-                        <span className="font-semibold text-base">19,270.56</span>
-                        <Badge className="bg-red-100 text-red-700 hover:bg-red-100 text-[10px] py-0">
-                            -8%
-                        </Badge>
-                    </div>
-                </div>
+                {indices.map(idx => renderIndexItem(idx.label, idx.token))}
             </div>
         </div>
     );

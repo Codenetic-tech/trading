@@ -6,17 +6,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrders } from '@/contexts/OrderContext';
 
 const OrderBook: React.FC = () => {
-    const { orders, trades, refreshOrders, refreshTrades } = useAuth();
+    const { token } = useAuth();
+    const { orders, trades, refreshOrders, refreshTrades } = useOrders();
     const [activeSection, setActiveSection] = useState<'orders' | 'trades'>('orders');
     const [searchQuery, setSearchQuery] = useState('');
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const handleRefresh = async () => {
+        if (!token) return;
         setIsRefreshing(true);
         try {
-            await Promise.all([refreshOrders(), refreshTrades()]);
+            await Promise.all([refreshOrders(token), refreshTrades(token)]);
         } finally {
             setIsRefreshing(false);
         }

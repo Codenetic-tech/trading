@@ -6,12 +6,18 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from "react-router-dom";
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { HoldingProvider, useHoldings } from './contexts/HoldingContext';
+import { OrderProvider, useOrders } from './contexts/OrderContext';
 import LoginPage from './components/LoginPage';
 import Layout from './components/Layout';
 import { Settings, Sparkles, Loader2 } from 'lucide-react';
 import { FilterProvider } from './contexts/FilterContext';
+import { WebsocketProvider } from './contexts/WebsocketContext';
 import Portfolio from './pages/portfolio';
 import OrderBook from './pages/orderbook';
+import { supabase } from '@/utils/supabase';
+import Test from './components/test';
+import WebSocketTester from './components/test';
 
 const queryClient = new QueryClient();
 
@@ -31,14 +37,25 @@ const ComingSoon = () => (
 );
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, handleCallback, token } = useAuth();
+  const { fetchHoldings } = useHoldings();
+  const { fetchOrderBook, fetchTradeBook } = useOrders();
   const [searchParams] = useSearchParams();
 
   const authCode = searchParams.get('authCode');
   const userId = searchParams.get('userId');
 
-  // If we are currently loading or have auth params (meaning login is in progress), 
-  // show nothing or a loader instead of redirecting
+  React.useEffect(() => {
+    if (authCode && userId && !token) {
+      handleCallback(authCode, userId, fetchHoldings, fetchOrderBook, fetchTradeBook).then(() => {
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }).catch(err => {
+        console.error("Auto-auth failed:", err);
+      });
+    }
+  }, [authCode, userId, token, handleCallback, fetchHoldings, fetchOrderBook, fetchTradeBook]);
+
   if (isLoading || (authCode && userId && !isAuthenticated)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -100,6 +117,14 @@ const AppContent = () => {
         }
       />
       <Route
+        path="/test"
+        element={
+          <ProtectedRoute>
+            <WebSocketTester />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/orderbook"
         element={
           <ProtectedRoute>
@@ -117,11 +142,17 @@ const App = () => (
     <TooltipProvider>
       <BrowserRouter>
         <AuthProvider>
-          <FilterProvider>
-            <Toaster />
-            <Sonner />
-            <AppContent />
-          </FilterProvider>
+          <HoldingProvider>
+            <WebsocketProvider>
+              <OrderProvider>
+                <FilterProvider>
+                  <Toaster />
+                  <Sonner />
+                  <AppContent />
+                </FilterProvider>
+              </OrderProvider>
+            </WebsocketProvider>
+          </HoldingProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
